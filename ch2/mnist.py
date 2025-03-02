@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from jax import random, vmap, grad, value_and_grad
+from jax import random, vmap, grad, value_and_grad, jit
 import jax.numpy as jnp
 from jax.nn import logsumexp, swish, one_hot
 import numpy as np
@@ -67,6 +67,7 @@ def loss(params, images, targets):
     log_preds = logits - logsumexp(logits)
     return -jnp.mean(targets*log_preds)
 
+@jit
 def update(params, x, y, epoch_number):
     INIT_LR = 1.0
     DECAY_RATE = 0.95
@@ -76,6 +77,7 @@ def update(params, x, y, epoch_number):
     lr = INIT_LR * DECAY_RATE ** (epoch_number / DECAY_STEPS)
     return [(w - lr * dw, b - lr *db) for (w,b), (dw,db) in zip(params, grads)], loss_value
 
+@jit
 def batch_accuracy(params, images, targets):
     images = jnp.reshape(images, (len(images), 28*28*1))
     predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
