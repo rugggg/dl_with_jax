@@ -3,6 +3,8 @@ from PIL.Image import init
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from jax import random
+import jax.numpy as jnp
+from jax.nn import swish
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple
@@ -43,10 +45,22 @@ def init_network_params(sizes, key=random.PRNGKey(40), scale=1e-2):
 
     def random_layer_params(m, n, key, scale=1e-2):
         w_key, b_key = random.split(key)
-        return scale * random.normal(b_key, (n,))
+        return scale * random.normal(w_key, (n,m)), scale * random.normal(b_key, (n,))
+
     keys = random.split(key, len(sizes))
     return [random_layer_params(m, n, k, scale) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
     
+
+def predict(params, image):
+    activations = image
+    for w,b in params[:-1]:
+        outputs = jnp.dot(w, activations) + b
+        activations = swish(outputs)
+
+    final_w, final_b = params[-1]
+    logits = jnp.dot(final_w, activations) + final_b
+    return logits
+
 if __name__ == "__main__":
     HEIGHT, WIDTH, CHANNELS = 28,28,1
     NUM_PIXELS = HEIGHT * WIDTH * CHANNELS
@@ -60,6 +74,10 @@ if __name__ == "__main__":
     LAYER_SIZES = [28*28, 512, 10]
     PARAM_SCALE = 0.01
     params = init_network_params(LAYER_SIZES, random.PRNGKey(40), scale=PARAM_SCALE)
+
+    random_img = random.normal(random.PRNGKey(42), (28*28*1,))
+    preds = predict(params, random_img)
+    print(preds.shape)
 
 
 
