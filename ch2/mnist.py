@@ -1,10 +1,11 @@
 from os import WEXITSTATUS
 from PIL.Image import init
+from jax._src.interpreters.batching import batch
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from jax import random
+from jax import random, vmap, grad, value_and_grad
 import jax.numpy as jnp
-from jax.nn import swish
+from jax.nn import logsumexp, swish
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple
@@ -61,6 +62,22 @@ def predict(params, image):
     logits = jnp.dot(final_w, activations) + final_b
     return logits
 
+batched_predict = vmap(predict, in_axes=(None, 0))
+
+def loss(params, images, targets):
+    logits = batched_predict(params, images)
+    log_preds = logits - logsumexp(logits)
+    return -jnp.mean(targets*log_preds)
+
+def update(params, x, y, epoch_number):
+    INIT_LR = 1.0
+    DECAY_STEPS = 0.95
+    DECAY_STEPS = 5
+    loss_value, grads = value_and_grad(loss)(params, x, y)
+    
+    lr = INIT_LR * DECAY_RATE ** (epoch_number / DECAY_STEPS)
+    return [(w - lr * dw, b - lr *db) for (w,b), (dw,db) in zip(params, grads)], loss_value
+
 if __name__ == "__main__":
     HEIGHT, WIDTH, CHANNELS = 28,28,1
     NUM_PIXELS = HEIGHT * WIDTH * CHANNELS
@@ -77,7 +94,11 @@ if __name__ == "__main__":
 
     random_img = random.normal(random.PRNGKey(42), (28*28*1,))
     preds = predict(params, random_img)
-    print(preds.shape)
 
+    random_flattened_images = random.normal(random.PRNGKey(41), (32, 28*28*1))
+
+    batched_preds = batched_predict(params, random_flattened_images)
+
+    
 
 
