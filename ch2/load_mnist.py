@@ -1,3 +1,4 @@
+from os import WEXITSTATUS
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
@@ -9,20 +10,19 @@ plt.rcParams['figure.figsize'] = [10, 5]
 
 data_dir = './data/tfds'
 
-def data_load() -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+def data_load() -> Tuple[tf.data.Dataset, tf.data.Dataset, tfds.core.dataset_info.DatasetInfo]:
     data, info = tfds.load(name="mnist",
                            data_dir=data_dir,
                            as_supervised=True,
                            with_info=True)
     data_train = data['train']
     data_test = data['test']
-    return data_train, data_test
+    return data_train, data_test, info
 
 
 def show_data_sample(data: tf.data.Dataset) -> None:
     ROWS = 3
     COLS = 10
-    print(type(data))
     i = 0 
     fig, ax = plt.subplots(ROWS, COLS)
     for image, label in data.take(ROWS*COLS):
@@ -33,6 +33,17 @@ def show_data_sample(data: tf.data.Dataset) -> None:
 
     plt.show()
 
+def preprocess(img: np.array, label: int) -> Tuple[np.array, int]:
+    return (tf.cast(img, tf.float32)/255.0), label
+
 if __name__ == "__main__":
-    data_train, data_test = data_load()
-    show_data_sample(data_train)
+    HEIGHT, WIDTH, CHANNELS = 28,28,1
+    NUM_PIXELS = HEIGHT * WIDTH * CHANNELS
+
+    data_train, data_test, info = data_load()
+    NUM_LABELS = info.features['label'].num_classes
+    # show_data_sample(data_train)
+    train_data = tfds.as_numpy(data_train.map(preprocess).batch(32).prefetch(1))
+    test_data = tfds.as_numpy(data_test.map(preprocess).batch(32).prefetch(1))
+
+
