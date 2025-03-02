@@ -1,14 +1,12 @@
-from os import WEXITSTATUS
-from PIL.Image import init
-from jax._src.interpreters.batching import batch
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from jax import random, vmap, grad, value_and_grad
 import jax.numpy as jnp
-from jax.nn import logsumexp, swish
+from jax.nn import logsumexp, swish, one_hot
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple
+import time
 
 
 plt.rcParams['figure.figsize'] = [10, 5]
@@ -71,12 +69,25 @@ def loss(params, images, targets):
 
 def update(params, x, y, epoch_number):
     INIT_LR = 1.0
-    DECAY_STEPS = 0.95
+    DECAY_RATE = 0.95
     DECAY_STEPS = 5
     loss_value, grads = value_and_grad(loss)(params, x, y)
     
     lr = INIT_LR * DECAY_RATE ** (epoch_number / DECAY_STEPS)
     return [(w - lr * dw, b - lr *db) for (w,b), (dw,db) in zip(params, grads)], loss_value
+
+def batch_accuracy(params, images, targets):
+    images = jnp.reshape(images, (len(images), 28*28*1))
+    predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
+    return jnp.mean(predicted_class == targets)
+
+def accuracy(params, data):
+    accs = []
+    for images, targets in data:
+        accs.append(batch_accuracy(params, images, targets))
+    return jnp.mean(jnp.array(accs))
+
+
 
 if __name__ == "__main__":
     HEIGHT, WIDTH, CHANNELS = 28,28,1
@@ -98,6 +109,27 @@ if __name__ == "__main__":
     random_flattened_images = random.normal(random.PRNGKey(41), (32, 28*28*1))
 
     batched_preds = batched_predict(params, random_flattened_images)
+
+    for epoch in range(10):
+        start_time = time.time()
+        losses = []
+        for x, y in train_data:
+            x = jnp.reshape(x, (len(x), NUM_PIXELS))
+            y = one_hot(y, NUM_LABELS)
+            params, loss_value = update(params, x, y, epoch)
+            losses.append(loss_value)
+        epoch_time = time.time() - start_time
+        start_time = time.time()
+        train_acc = accuracy(params, train_data)
+        test_acc = accuracy(params, test_data)
+
+        eval_time = time.time() - start_time
+        print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
+        print("Eval in {:0.2f} sec".format(eval_time))
+        print("Training set loss {}".format(jnp.mean(jnp.array(losses))))
+        print("Training set accuracy {}".format(train_acc))
+        print("test set accuracy {}".format(test_acc))
+
 
     
 
