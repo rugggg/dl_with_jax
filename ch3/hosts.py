@@ -52,3 +52,17 @@ try:
     a_jnp[5] = 100
 except TypeError as e:
     print(e)
+a_jnp.at[5].set(100)
+print(a_jnp[5])
+
+# out of bounds handling in jax is slightly different
+
+# notice that this will not fail! it clips to last index
+print(a_jnp[42])
+
+# so you should use .at and you can set modes for how to handle out of bounds indexes
+print(a_jnp.at[42].get(mode='promise_in_bounds'))
+print(a_jnp.at[42].get(mode='drop'))
+print(a_jnp.at[42].get(mode='clip'))
+print(a_jnp.at[42].get(mode='fill', fill_value=99))
+
