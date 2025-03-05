@@ -1,4 +1,5 @@
 import jax
+from jax._src.api import block_until_ready
 import jax.numpy as jnp
 
 print(jax.devices())
@@ -18,3 +19,20 @@ jax.device_put(arr, jax.devices()[0])
 
 
 # palias is kernel writing library for JAX ala triton
+
+# JAX does async dispatch, so an Array is actually a 'future'
+# the value will be produced in the future on the device, but it does 
+# have the shape and type of the array already
+# if you print or inspect, it forces the conversion to a numpy array
+# and so it forces jax to wait and produce the value
+
+# canuse the array.block_until_ready() to force this behavior
+
+# run this in colab: 
+a = jnp.array(range(1000000)).reshape((1000, 1000))
+print(a.device)
+@time x = jnp.dot(a, a)
+print(time)
+ 
+@time x = jnp.dot(a, a).block_until_ready()
+print(x)
