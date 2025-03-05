@@ -66,3 +66,21 @@ print(a_jnp.at[42].get(mode='drop'))
 print(a_jnp.at[42].get(mode='clip'))
 print(a_jnp.at[42].get(mode='fill', fill_value=99))
 
+
+# types
+# jax really prefers float32 for most things, if you want float64, use this config block at startup
+'''
+from jax.config import config
+config.update("jax_unable_x64", True)
+'''
+# gpu and tpu may still convert this!
+
+xb16 = jnp.array(range(10), dtype=jnp.bfloat16)
+print(xb16.dtype, xb16.nbytes)
+
+x16 = jnp.array(range(10), dtype=jnp.float16)
+print(x16.dtype, x16.nbytes)
+
+# type promotions
+xb16+x16 ## outputs a float32
+xb16+xb16 ## outputs a bfloat
