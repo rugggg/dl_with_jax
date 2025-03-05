@@ -1,6 +1,7 @@
 import jax
 from jax._src.api import block_until_ready
 import jax.numpy as jnp
+import numpy as np
 
 print(jax.devices())
 print(jax.devices('cpu'))
@@ -29,6 +30,7 @@ jax.device_put(arr, jax.devices()[0])
 # canuse the array.block_until_ready() to force this behavior
 
 # run this in colab: 
+'''
 a = jnp.array(range(1000000)).reshape((1000, 1000))
 print(a.device)
 @time x = jnp.dot(a, a)
@@ -36,3 +38,17 @@ print(time)
  
 @time x = jnp.dot(a, a).block_until_ready()
 print(x)
+'''
+
+# jax arrays are immutable
+a_jnp = jnp.array(range(10))
+a_np = np.array(range(10))
+
+print(a_np[5], a_jnp[5])
+
+a_np[5] = 100
+
+try:
+    a_jnp[5] = 100
+except TypeError as e:
+    print(e)
