@@ -1,3 +1,4 @@
+import jax
 # working on getting gradients in jax via autograd
 
 # start with manual dx
@@ -24,6 +25,22 @@ df = sympy.lambdify(x_sym, df_sym)
 print(df(x))
 # so even with all that, we are still in trouble for large nets 
 # we have non closed form experssions (control flow etc)
-# and the experssion would be massive
+# and the expression would be massive
 
 # so lets use numerical differntiation
+x = 11.0
+dx = 1e-6
+df_x_numeric = (f(x+dx) -f(x))/dx
+print(df_x_numeric)
+# but numeric diff requires at least two evals per scalar input
+# it is also less acurrate as it is an approximation
+# accuracy issues come from approximation and round-off errors, both driven
+# by step size selection
+
+# now for autodiff
+# so if a differnetiable function is composed of primitives such as addition, divisions, exponents etc which have known derivatives
+# autodiff tracks the derivatives during computation of the function using the chain rule
+# autodiff actually allows derivatives for all kinds of things, including control structures, branches, loops and even recursion
+
+df = jax.grad(f)
+print(df(x))

@@ -2,12 +2,13 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from jax import random, vmap, grad, value_and_grad, jit
 import jax.numpy as jnp
-from jax.nn import logsumexp, swish, one_hot
+from functools import partial
+from jax.nn import logsumexp, swish, one_hot, gelu, relu
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Tuple
+from typing import Tuple, List, Callable
 import time
-
+import pickle
 
 plt.rcParams['figure.figsize'] = [10, 5]
 
@@ -50,37 +51,40 @@ def init_network_params(sizes, key=random.PRNGKey(40), scale=1e-2):
     return [random_layer_params(m, n, k, scale) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
     
 
-def predict(params, image):
-    activations = image
+def predict(params, image, activations: List[Callable]):
+    assert len(activations) == len(params[0])
+    x = image
+    idx = 0
     for w,b in params[:-1]:
-        outputs = jnp.dot(w, activations) + b
-        activations = swish(outputs)
+        outputs = jnp.dot(w, x) + b
+        x = activations[idx](outputs)
+        idx += 1
 
     final_w, final_b = params[-1]
-    logits = jnp.dot(final_w, activations) + final_b
+    logits = jnp.dot(final_w, x) + final_b
     return logits
 
-batched_predict = vmap(predict, in_axes=(None, 0))
+batched_predict = vmap(predict, in_axes=(None, 0, None))
 
-def loss(params, images, targets):
-    logits = batched_predict(params, images)
+def loss(params, images, targets, activations):
+    logits = batched_predict(params, images, activations)
     log_preds = logits - logsumexp(logits)
     return -jnp.mean(targets*log_preds)
 
-@jit
-def update(params, x, y, epoch_number):
+@partial(jit, static_argnums=(1,))
+def update(params, activations, x, y, epoch_number):
     INIT_LR = 1.0
     DECAY_RATE = 0.95
     DECAY_STEPS = 5
-    loss_value, grads = value_and_grad(loss)(params, x, y)
+    loss_value, grads = value_and_grad(loss)(params, activations, x, y)
     
     lr = INIT_LR * DECAY_RATE ** (epoch_number / DECAY_STEPS)
     return [(w - lr * dw, b - lr *db) for (w,b), (dw,db) in zip(params, grads)], loss_value
 
 @jit
-def batch_accuracy(params, images, targets):
+def batch_accuracy(params, images, targets, activations: list[Callable]):
     images = jnp.reshape(images, (len(images), 28*28*1))
-    predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
+    predicted_class = jnp.argmax(batched_predict(params, images, activations), axis=1)
     return jnp.mean(predicted_class == targets)
 
 def accuracy(params, data):
@@ -97,6 +101,7 @@ if __name__ == "__main__":
 
     data_train, data_test, info = data_load()
     NUM_LABELS = info.features['label'].num_classes
+    activations = [swish, gelu]
     # show_data_sample(data_train)
     train_data = tfds.as_numpy(data_train.map(preprocess).batch(32).prefetch(1))
     test_data = tfds.as_numpy(data_test.map(preprocess).batch(32).prefetch(1))
@@ -104,13 +109,14 @@ if __name__ == "__main__":
     LAYER_SIZES = [28*28, 512, 10]
     PARAM_SCALE = 0.01
     params = init_network_params(LAYER_SIZES, random.PRNGKey(40), scale=PARAM_SCALE)
+    print(params)
 
     random_img = random.normal(random.PRNGKey(42), (28*28*1,))
-    preds = predict(params, random_img)
+    preds = predict(params, random_img, activations)
 
     random_flattened_images = random.normal(random.PRNGKey(41), (32, 28*28*1))
 
-    batched_preds = batched_predict(params, random_flattened_images)
+    batched_preds = batched_predict(params, random_flattened_images, activations)
 
     for epoch in range(10):
         start_time = time.time()
@@ -118,7 +124,7 @@ if __name__ == "__main__":
         for x, y in train_data:
             x = jnp.reshape(x, (len(x), NUM_PIXELS))
             y = one_hot(y, NUM_LABELS)
-            params, loss_value = update(params, x, y, epoch)
+            params, loss_value = update(params, activations, x, y, epoch)
             losses.append(loss_value)
         epoch_time = time.time() - start_time
         start_time = time.time()

@@ -1,5 +1,7 @@
-import numpy as np
-from scipy.signal import convolve2d
+# import numpy as np
+import jax.numpy as np
+# from scipy.signal import convolve2d
+from jax.scipy.signal import convolve2d
 from matplotlib import figure, pyplot as plt
 from skimage.io import imread, imsave
 from skimage.util import img_as_float32, img_as_ubyte, random_noise
@@ -60,3 +62,29 @@ img_blur = color_convolution(img_noised, kernel_gauss)
 plt.figure(figsize = (12, 10))
 plt.imshow(np.hstack((img_noised, img_blur)))
 plt.show()
+
+
+# image sharpening
+
+kernel_sharpen = np.array(
+        [[-1, -1, -1, -1, -1],
+         [-1, -1, -1, -1, -1],
+         [-1, -1, 50, -1, -1],
+         [-1, -1, -1, -1, -1],
+         [-1, -1, -1, -1, -1]], dtype=np.float32
+)
+kernel_sharpen /= np.sum(kernel_sharpen)
+print(kernel_sharpen)
+img_restored = color_convolution(img_blur,  kernel_sharpen)
+plt.figure(figsize=(5, 10))
+plt.imshow(np.vstack(
+            (np.hstack((img, img_noised)),
+            np.hstack((img_restored, img_blur)))
+        ))
+
+plt.show()
+
+image_modified = img_as_ubyte(img_restored)
+imsave('grouch_mod.jpg', arr=image_modified)
+
+
