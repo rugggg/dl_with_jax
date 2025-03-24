@@ -15,4 +15,14 @@ x = jax.random.normal(jax.random.PRNGKey(42), (1_000_000,)) # a million random n
 selu_jit = jax.jit(selu)
 selu_jit(x).block_until_ready()
 
+# or
+@jax.jit
+def selu(x, alpha=1.6732, scale=1.0507):
+    return scale * jnp.where(x>0, x, alpha * jnp.exp(x) - alpha)
+
+# warmup call 
+z = selu(x)
+selu(x).block_until_ready()
+
+
 # jit gets like a 5x speedup here fwiw
