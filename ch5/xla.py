@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 
+
 def selu(x, alpha=1.6732, scale=1.0507):
     return scale * jnp.where(x>0, x, alpha * jnp.exp(x) - alpha)
 
@@ -63,5 +64,25 @@ def dist(order, x, y):
     return jnp.power(jnp.sum(jnp.abs(x-y)**order), 1.0/order)
 
 
+
+# a huge note to remember!
+# because jax jit takes a python func and traces it to jaxpr then xla at first invocation, you have to remember that side effects only happen at first invocation!!!
+# additionally, jax NEEDS pure functions, so global state or things not specificlly in the input variables will be set static at the first call, for example, a global variable
+
+global_state = 1
+
+def impure_function(x):
+    print(f'side effect: x={x}')
+    y = x*global_state
+    return y
+
+impure_function_jit = jax.jit(impure_function)
+
+print(impure_function_jit(10)) # side effects happen, and global state is correct
+
+print(impure_function_jit(10)) # will not have print side effect, but global state ok
+
+global_state = 2
+print(impure_function_jit(10)) # will not have print side effect, AND global state is not updated!, still outputs 10!
 
 
