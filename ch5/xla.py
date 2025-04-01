@@ -86,3 +86,38 @@ global_state = 2
 print(impure_function_jit(10)) # will not have print side effect, AND global state is not updated!, still outputs 10!
 
 
+# jaxpr time
+
+def f1(x, y, z):
+    return jnp.sum(x + y * z)
+
+x = jnp.array([1.0, 1.0, 1.0])
+y = jnp.ones((3,3))*2.0
+z = jnp.array([2.0, 1.0, 0.0]).T
+
+print(jax.make_jaxpr(f1)(x,y,z))
+
+# ok skipping most jaxpr stuff for now, might come back to it
+# what is interesting is that jax traces functions to compile them w/jit
+# jaxpr on first trace triggers side effect, but never traces it. hence the
+# behavior above where global variables dont get changed
+
+# control structures under JIT a bit more interesting
+# if they do not depend on a global variable and do not depend on any 
+# input value, no worries. They can depend on shape of input however
+
+def f3(x):
+    y = x
+    for i in range(5):
+        y += i
+    return y
+
+print(jax.make_jaxpr(f3)(0)) # no input dependence at all, no worries
+
+def f4(x):
+    y = 0
+    for i in range(x.shape[0]):
+        y += x[i]
+    return y
+print(jax.make_jaxpr(f4)(jnp.array([1., 2., 3.]))) # gets unrolled, depends on shape of input but thats ok
+
