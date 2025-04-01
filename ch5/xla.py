@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from sympy import lambdify
 
 
 def selu(x, alpha=1.6732, scale=1.0507):
@@ -120,4 +121,31 @@ def f4(x):
         y += x[i]
     return y
 print(jax.make_jaxpr(f4)(jnp.array([1., 2., 3.]))) # gets unrolled, depends on shape of input but thats ok
+
+def relu(x):
+    if x > 0:
+        return x
+    return 0.0
+
+print(relu(10.)) # ok
+
+# print(jax.make_jaxpr(relu)(10.0)) # jit/jaxpr will fail on this bc relu func depends on input value!
+# however, we can use static_argnums to declare it static.
+# this works, but costs a recompile each time a new value is called
+
+print(jax.make_jaxpr(relu, static_argnums=0)(10.0)) 
+
+# but relu will see a new value like all the time! this is the use of jax.lax control flow!
+def f5(x):
+    return jax.lax.fori_loop(0, x, lambda i,v: v+i, 0)
+
+def relu(x):
+    return jax.lax.cond(x>0, lambda x: x, lambda x: 0.0, x)
+
+relu(12.3)
+print(jax.make_jaxpr(relu)(12.3))
+
+# great! now the code is through to jaxpr, but it still needs to get to XLA
+# so a key takeaway: jax.lax for control flow in jit.
+
 
