@@ -148,4 +148,23 @@ print(jax.make_jaxpr(relu)(12.3))
 # great! now the code is through to jaxpr, but it still needs to get to XLA
 # so a key takeaway: jax.lax for control flow in jit.
 
+# So XLA was created at Google for tensorflow graph JIT compilation and fusing. 
+# for example:
+def f(x, y, z):
+    return jnp.sum(x + y * z)
+# has three seperate ops in it. XLA will optimize and fuse this to a single op.
+# it also removes extra intermediate varoables and can keep data in same memory/gpu location
+# xla compiles to native backend code for accelerator of choice
+# we refer to the system sending data to XLA as the frontend - TensorFlow, PyTorch, JAX, Julia etc. So I am a front end developer!
 
+# ok wow a ton on XLA and compilers in this book here, very deep rabbit hole
+x = jnp.array([1.0, 1.0, 1.0])                             
+y = jnp.ones((3,3))*2.0                                           
+z = jnp.array([2.0, 1.0, 0.0]).T
+
+
+f_jitted = jax.jit(f)
+f_lowered = f_jitted.lower(x,y,z)
+print(f_lowered.as_text())
+f_compiled = f_jitted.lower(x,y,z).compile()
+print(f_compiled.as_text())
