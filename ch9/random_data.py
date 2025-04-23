@@ -50,4 +50,21 @@ for image, label in cats_dogs_data_train.take(ROWS*COLS):
 plt.show()
 
 
+HEIGHT = 200
+WIDTH = 200
+NUM_LABELS = info.features['label'].num_classes
+
+import jax.numpy as jnp
+
+def preprocess(img, label):
+    """
+    resize and preprocess images
+    """
+    return tf.image.resize(img, [HEIGHT, WIDTH]) / 255.0, label
+
+train_data = tfds.as_numpy(
+        cats_dogs_data_train.map(preprocess).batch(32).prefetch(1))
+test_data = tfds.as_numpy(
+        cats_dogs_data_test.map(preprocess).batch(32).prefetch(1))
+
 
