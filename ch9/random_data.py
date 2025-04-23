@@ -40,14 +40,14 @@ ROWS = 2
 COLS = 5
 
 i = 0
-fig, ax = plt.subplots(ROWS, COLS)
-for image, label in cats_dogs_data_train.take(ROWS*COLS):
-    ax[int(i/COLS), i%COLS].axis('off')
-    ax[int(i/COLS), i%COLS].set_title(CLASS_NAMES[label])
-    ax[int(i/COLS), i%COLS].imshow(image)
-    i += 1
+#fig, ax = plt.subplots(ROWS, COLS)
+#for image, label in cats_dogs_data_train.take(ROWS*COLS):
+#    ax[int(i/COLS), i%COLS].axis('off')
+#    ax[int(i/COLS), i%COLS].set_title(CLASS_NAMES[label])
+#    ax[int(i/COLS), i%COLS].imshow(image)
+#    i += 1
 
-plt.show()
+#plt.show()
 
 
 HEIGHT = 200
@@ -67,4 +67,22 @@ train_data = tfds.as_numpy(
 test_data = tfds.as_numpy(
         cats_dogs_data_test.map(preprocess).batch(32).prefetch(1))
 
+batch_images, batch_labels = next(iter(train_data))
+print(batch_images[0].shape)
+
+image = batch_images[0]
+print(image.min(), image.max())
+#
+#plt.imshow(image)
+#plt.show()
+
+
+seed = 42
+key = jax.random.PRNGKey(seed)
+std_noise = jax.random.normal(key, image.shape)
+print(std_noise.min(), std_noise.max())
+noise = 0.5 + 0.1*std_noise # move range to have mean 0.5 and stddev 0.1
+
+plt.imshow(noise)
+plt.show()
 
